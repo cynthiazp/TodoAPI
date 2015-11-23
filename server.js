@@ -2,6 +2,7 @@ var express = require("express");
 var bodyParser = require("body-parser");
 var _ = require("underscore");
 var db = require("./db.js");
+var bcrypt = require("bcrypt")
 
 var app = express();
 var PORT = process.env.PORT || 3000;
@@ -31,7 +32,9 @@ app.get("/todos", function (req, res) {
 		};
 	}
 
-	db.todo.findAll({where: where}).then(function (todos) {
+	db.todo.findAll({
+		where: where
+	}).then(function (todos) {
 		res.json(todos);
 	}, function (e) {
 		res.status(500).send();
@@ -52,7 +55,6 @@ app.get("/todos/:id", function (req, res) {
 	}, function (e) {
 		res.status(500).send();
 	});
-
 });
 
 app.post("/todos", function (req, res) {
@@ -95,18 +97,12 @@ app.put("/todos/:id", function (req, res) {
 	var attributes = {};
 
 
-	if (body.hasOwnProperty("completed") && _.isBoolean(body.completed)) {
+	if (body.hasOwnProperty("completed")) {
 		attributes.completed = body.completed;
 	}
-	else if (body.hasOwnProperty("completed")) {
-		return res.status(400).send();
-	}
 
-	if (body.hasOwnProperty("description") && _.isString(body.description) && body.description.length > 0) {
+	if (body.hasOwnProperty("description")) {
 		attributes.description = body.description;
-	}
-	else if (body.hasOwnProperty("description")) {
-		return res.status(400).send();
 	}
 
 	db.todo.findById(todoId).then(function (todo) {
@@ -134,13 +130,22 @@ app.post("/users", function (req, res) {
 	}, function (e) {
 		res.status(400).json(e);
 	});
-})
+});
 
-db.sequelize.sync().then(function () {
+app.post("/users/login", function (req, res) {
+	var body = _.pick(req.body, "email", "password");
+
+	db.user.authenticate(body).then(function (user) {
+		res.json(user.toPublicJSON());
+	}, function () {
+		res.status(401).send();
+	});
+});
+
+db.sequelize.sync({force: true}).then(function () {
 	app.listen(PORT, function () {
 	console.log("Express listening on port " + PORT + "!");
 	});
-
 });
 
 
